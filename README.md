@@ -23,3 +23,46 @@ Viewers can check out detailed information about your pokemon's **ability**, **m
 
 ### Updates what items are in the streamers bag
 ![itemsUpdate](https://github.com/user-attachments/assets/999adefc-4e98-473f-975b-89b08c9f1371)
+
+
+
+# Setup Instructions
+
+## 1. Download IronmonConnect
+Download the **IronmonConnect.exe** application from the  
+➡️ **Releases page:** https://github.com/WaffleSmacker/IronmonConnect-IronmonExtension/releases
+
+---
+
+## 2. Install the IronmonConnect Tracker Extension
+Install the **IronmonConnect extension** for the Ironmon Tracker.<br><br>
+<img width="200" height="210" alt="trackerExtension" src="https://github.com/user-attachments/assets/37bac9b6-2b42-4de5-9af8-9d8a627fccab" /> 
+
+
+
+---
+
+## 3. Connect Your Twitch Account
+Open **IronmonConnect.exe** and click **"Connect Twitch"** to authenticate your account. <br><br>
+
+<img width="300" height="250" alt="connectTwitch" src="https://github.com/user-attachments/assets/7d92ecaf-991a-44e9-8a54-c89638fac4eb" />
+
+
+---
+
+## 4. Add the Twitch Extension
+Add the **IronmonConnect Twitch Extension** to your channel.  
+(Extension link coming soon)
+
+---
+
+## 5. Add Extension to Your Stream
+Add the extension overlay to your stream layout in OBS, Streamlabs, or any other streaming software.
+
+---
+
+## 6. Start Streaming
+Once everything is set up, IronmonConnect will automatically send your run data to the extension while you stream.
+<br><br>
+<img width="400" height="250" alt="updates" src="https://github.com/user-attachments/assets/6db1d6f0-41bd-429a-84e4-866c17d8e6ed" />
+
