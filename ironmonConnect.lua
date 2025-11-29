@@ -1,6 +1,6 @@
 local function IronmonConnect()
 	local self = {
-		version = "1.0",
+		version = "0.9",
 		name = "ironmonConnect",
 		author = "WaffleSmacker",
 		description = "Created for ironmonConnect. Used to send data to the website.",
@@ -9,18 +9,8 @@ local function IronmonConnect()
 
 	self.url = string.format("https://github.com/%s", self.github)
 
-	-- Executed when the user clicks the "Check for Updates" button while viewing the extension details within the Tracker's UI
-	--function self.checkForUpdates()
-	--	local versionCheckUrl = string.format("https://api.github.com/repos/%s/releases/latest", self.github)
-	--	local versionResponsePattern = '"tag_name":%s+"%w+(%d+%.%d+)"' -- matches "1.0" in "tag_name": "v1.0"
-	--	local downloadUrl = string.format("https://github.com/%s/releases/latest", self.github)
-	--	local compareFunc = function(a, b) return a ~= b and not Utils.isNewerVersion(a, b) end -- if current version is *older* than online version
-	--	local isUpdateAvailable = Utils.checkForVersionUpdate(versionCheckUrl, self.version, versionResponsePattern, compareFunc)
-	--	return isUpdateAvailable, downloadUrl
-	--end
-
 	-- Data output file path
-	self.DATA_OUTPUT_FILE = "ironmonconnect_data.json"
+	self.DATA_OUTPUT_FILE = "tracker_output.json"
 	self.DEBUG_OUTPUT_FILE = "ironmonconnect_debug.txt"
 
 	self.Paths = {
@@ -58,17 +48,6 @@ local function IronmonConnect()
 		end
 
 		return totalDefeated
-	end
-
-	local function getPokemonOrDefault(input)
-		local id
-		if not Utils.isNilOrEmpty(input, true) then
-			id = DataHelper.findPokemonId(input)
-		else
-			local pokemon = Tracker.getPokemon(1, true) or {}
-			id = pokemon.pokemonID
-		end
-		return PokemonData.Pokemon[id or false]
 	end
 
 	-- Function to serialize a table for debugging
@@ -137,6 +116,9 @@ local function IronmonConnect()
 	local getPivotData
 	
 	-- Function to write debug information to file
+	-- NOTE: Disabled for soft release. To re-enable, uncomment this function
+	--       and the call site in self.afterProgramDataUpdate().
+	--[[
 	local function writeDebugInfo(pokemon)
 		local debugFile = io.open(self.Paths.DebugOutput, "w")
 		if not debugFile then
@@ -300,6 +282,7 @@ local function IronmonConnect()
 
 		debugFile:close()
 	end
+	]]
 
 	-- Function to get all items from bag, categorized by type, filtered by database IDs
 	getTrackedItems = function()
@@ -686,8 +669,8 @@ local function IronmonConnect()
 		if Program.isValidMapLocation() and PokemonData.isValid(leadPokemon.pokemonID) and V.FirstPokemonChosen then
 			local currentValues = getCurrentValues(leadPokemon)
 			if currentValues and valuesChanged(currentValues, V.LastValues) then
-				-- Write debug info only when values change
-				writeDebugInfo(leadPokemon)
+				-- Debug info file disabled for soft release (writeDebugInfo commented out)
+				-- writeDebugInfo(leadPokemon)
 				writeSimplifiedDataToFile(currentValues)
 				V.LastValues = currentValues
 			end
