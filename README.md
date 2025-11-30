@@ -57,7 +57,7 @@ Add the **IronmonConnect Twitch Extension** to your channel.
 ---
 
 ## 5. Add Extension to Your Stream
-Add the extension overlay to your stream layout in OBS, Streamlabs, or any other streaming software.
+Add the extension to your twitch stream as a video overlay.
 
 ---
 
