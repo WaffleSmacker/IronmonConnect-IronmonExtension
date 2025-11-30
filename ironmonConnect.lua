@@ -385,15 +385,59 @@ local function IronmonConnect()
 	-- Function to get pivot encounters per route (Pokemon IDs indexed by route/map ID)
 	getPivotData = function()
 		local pivotData = {}
-		local mapIds = RouteData.getPivotOrSafariRouteIds(false) or {}
-		for _, mapId in ipairs(mapIds) do
-			local seenIds = Tracker.getRouteEncounters(mapId, RouteData.EncounterArea.LAND) or {}
+		
+		-- Get both regular pivot routes AND Safari Zone routes
+		local pivotMapIds = RouteData.getPivotOrSafariRouteIds(false) or {}
+		local safariMapIds = RouteData.getPivotOrSafariRouteIds(true) or {}
+		
+		-- Combine both sets of routes (avoid duplicates)
+		local allMapIds = {}
+		local mapIdSet = {}
+		for _, mapId in ipairs(pivotMapIds) do
+			if not mapIdSet[mapId] then
+				table.insert(allMapIds, mapId)
+				mapIdSet[mapId] = true
+			end
+		end
+		for _, mapId in ipairs(safariMapIds) do
+			if not mapIdSet[mapId] then
+				table.insert(allMapIds, mapId)
+				mapIdSet[mapId] = true
+			end
+		end
+		
+		for _, mapId in ipairs(allMapIds) do
 			local uniqueIds = {}
-			for _, pokemonId in ipairs(seenIds) do
-				if PokemonData.isValid(pokemonId) then
-					uniqueIds[pokemonId] = true
+			
+			-- Check multiple encounter areas to capture all encounters (LAND, WATER, etc.)
+			-- This is important for Safari Zone which may have different encounter types
+			local encounterAreas = {
+				RouteData.EncounterArea.LAND,
+				RouteData.EncounterArea.WATER,
+			}
+			
+			-- Check if additional encounter areas exist (for Safari Zone or other special areas)
+			if RouteData.EncounterArea.OLD_ROD then
+				table.insert(encounterAreas, RouteData.EncounterArea.OLD_ROD)
+			end
+			if RouteData.EncounterArea.GOOD_ROD then
+				table.insert(encounterAreas, RouteData.EncounterArea.GOOD_ROD)
+			end
+			if RouteData.EncounterArea.SUPER_ROD then
+				table.insert(encounterAreas, RouteData.EncounterArea.SUPER_ROD)
+			end
+			
+			-- Collect encounters from all areas
+			for _, encounterArea in ipairs(encounterAreas) do
+				local seenIds = Tracker.getRouteEncounters(mapId, encounterArea) or {}
+				for _, pokemonId in ipairs(seenIds) do
+					if PokemonData.isValid(pokemonId) then
+						uniqueIds[pokemonId] = true
+					end
 				end
 			end
+			
+			-- If we found any encounters, add them to pivotData
 			if next(uniqueIds) then
 				pivotData[mapId] = {}
 				for pokemonId in pairs(uniqueIds) do
