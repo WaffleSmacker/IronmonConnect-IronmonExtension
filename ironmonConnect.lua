@@ -1,6 +1,6 @@
 local function IronmonConnect()
 	local self = {
-		version = "0.9",
+		version = "1.0",
 		name = "ironmonConnect",
 		author = "WaffleSmacker",
 		description = "Created for ironmonConnect. Used to send data to the website.",
@@ -93,7 +93,7 @@ local function IronmonConnect()
 		return str
 	end
 	
-	-- Valid item IDs from database (Balls, Healing, Status, PP, Evolution, Gym TM)
+	-- Valid item IDs from database (Balls, Healing, Status, PP, Evolution, Gym TM, Others)
 	-- Defined early so it can be used in debug function
 	local validItemIds = {
 		[1] = true, [2] = true, [3] = true, [4] = true, [5] = true, [6] = true,
@@ -102,6 +102,7 @@ local function IronmonConnect()
 		[19] = true, [20] = true, [21] = true, [22] = true, [23] = true, [26] = true,
 		[27] = true, [28] = true, [29] = true, [30] = true, [31] = true, [32] = true,
 		[34] = true, [35] = true, [36] = true, [37] = true, [38] = true, [44] = true,
+		[68] = true, [69] = true, [71] = true,
 		[93] = true, [94] = true, [95] = true, [96] = true, [97] = true, [98] = true,
 		[133] = true, [134] = true, [135] = true, [136] = true, [137] = true, [138] = true,
 		[139] = true, [140] = true, [141] = true, [142] = true,
@@ -292,7 +293,7 @@ local function IronmonConnect()
 
 		debugFile:close()
 	end
-	]]
+	--]]
 
 	-- Function to get all items from bag, categorized by type, filtered by database IDs
 	getTrackedItems = function()
@@ -303,6 +304,7 @@ local function IronmonConnect()
 			hp = {},
 			pp = {},
 			status = {},
+			others = {},
 		}
 
 		-- Helper function to add item to a specific category
@@ -321,6 +323,31 @@ local function IronmonConnect()
 				id = itemId,
 				quantity = quantity
 			})
+		end
+
+		-- Helper function to read TMs directly from memory (since Program.lua skips them)
+		local function getTMsFromBag()
+			local tms = {}
+			local key = Utils.getEncryptionKey(2)
+			local saveBlock1Addr = Utils.getSaveBlock1Addr()
+			local address = saveBlock1Addr + GameSettings.bagPocket_TmHm_offset
+			local size = GameSettings.bagPocket_TmHm_Size
+
+			for i = 0, (size - 1), 1 do
+				local itemid_and_quantity = Memory.readdword(address + i * 4)
+				local itemID = Utils.getbits(itemid_and_quantity, 0, 16)
+				
+				if isValidItemId(itemID) then
+					local quantity = Utils.getbits(itemid_and_quantity, 16, 16)
+					if key ~= nil then
+						quantity = Utils.bit_xor(quantity, key)
+					end
+					if quantity > 0 then
+						tms[itemID] = quantity
+					end
+				end
+			end
+			return tms
 		end
 
 		if Program.GameData and Program.GameData.Items then
@@ -364,16 +391,42 @@ local function IronmonConnect()
 				end
 			end
 
-			-- TMs (in Other category, filter only gym TM IDs)
+			-- TMs (Read directly from memory as they are not in Program.GameData.Items)
 			local gymTmIds = {
 				[291] = true, [292] = true, [294] = true, [307] = true,
 				[314] = true, [322] = true, [326] = true, [327] = true
 			}
-			local otherItems = Program.GameData.Items.Other
-			if otherItems and type(otherItems) == "table" then
-				for itemID, quantity in pairs(otherItems) do
+			local tmItems = getTMsFromBag()
+			if tmItems and type(tmItems) == "table" then
+				for itemID, quantity in pairs(tmItems) do
 					if gymTmIds[tonumber(itemID) or itemID] then
 						addItem("gymtm", itemID, quantity)
+					end
+				end
+			end
+
+			-- PP items from Other category (items 69 and 71 - PP Up and PP Max)
+			local otherItems = Program.GameData.Items.Other
+			if otherItems and type(otherItems) == "table" then
+				local ppItemIds = {
+					[69] = true,  -- PP Up
+					[71] = true   -- PP Max
+				}
+				for itemID, quantity in pairs(otherItems) do
+					if ppItemIds[tonumber(itemID) or itemID] then
+						addItem("pp", itemID, quantity)
+					end
+				end
+			end
+
+			-- Others category (item 68 and other items that don't fit other categories)
+			if otherItems and type(otherItems) == "table" then
+				local othersItemIds = {
+					[68] = true
+				}
+				for itemID, quantity in pairs(otherItems) do
+					if othersItemIds[tonumber(itemID) or itemID] then
+						addItem("others", itemID, quantity)
 					end
 				end
 			end
@@ -495,7 +548,7 @@ local function IronmonConnect()
 			return true
 		end
 
-		local categoriesToCheck = {"balls", "evolution", "gymtm", "hp", "pp", "status"}
+		local categoriesToCheck = {"balls", "evolution", "gymtm", "hp", "pp", "status", "others"}
 		for _, category in ipairs(categoriesToCheck) do
 			if compareItemCategory(current[category] or {}, previous[category] or {}) then
 				return true
@@ -638,7 +691,7 @@ local function IronmonConnect()
 		end
 		
 		-- Format each category
-		local items = values.items or { balls = {}, evolution = {}, gymtm = {}, hp = {}, pp = {}, status = {} }
+		local items = values.items or { balls = {}, evolution = {}, gymtm = {}, hp = {}, pp = {}, status = {}, others = {} }
 		formatHealCategory("balls", items.balls)
 		jsonContent = jsonContent .. ",\n"
 		formatHealCategory("evolution", items.evolution)
@@ -650,6 +703,8 @@ local function IronmonConnect()
 		formatHealCategory("pp", items.pp)
 		jsonContent = jsonContent .. ",\n"
 		formatHealCategory("status", items.status)
+		jsonContent = jsonContent .. ",\n"
+		formatHealCategory("others", items.others)
 		jsonContent = jsonContent .. "\n"
 		
 		jsonContent = jsonContent .. '  },\n'
