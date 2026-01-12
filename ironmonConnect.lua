@@ -3,7 +3,7 @@ local function IronmonConnect()
 		version = "1.0",
 		name = "ironmonConnect",
 		author = "WaffleSmacker",
-		description = "Created for ironmonConnect. Used to send data to the website.",
+		description = "Created for ironmonConnect. Used to send data to the website. Click options to launch the ironmonConnect application.",
 		github = "WaffleSmacker/IronmonConnect-IronmonExtension",
 	}
 
@@ -18,6 +18,28 @@ local function IronmonConnect()
 		local compareFunc = function(a, b) return a ~= b and not Utils.isNewerVersion(a, b) end
 		local isUpdateAvailable = Utils.checkForVersionUpdate(versionCheckUrl, self.version, versionResponsePattern, compareFunc)
 		return isUpdateAvailable, downloadUrl
+	end
+
+	-- Executed when the user clicks the "Options" button while viewing the extension details within the Tracker's UI
+	function self.configureOptions()
+		if not Main.IsOnBizhawk() then return end
+
+		-- Get the ironmonConnect folder path (one level deeper from extensions folder)
+		local extFolderPath = FileManager.getCustomFolderPath() .. "ironmonConnect" .. FileManager.slash
+		local exePath = extFolderPath .. "ironmonConnect.exe"
+		
+		-- Try to launch the exe program directly
+		-- If it doesn't exist, open the folder instead so user can see what's there
+		local file = io.open(exePath, "r")
+		if file then
+			-- Exe exists, launch it
+			file:close()
+			-- Use start command on Windows to launch the exe
+			os.execute('start "" "' .. exePath .. '"')
+		else
+			-- Exe doesn't exist, open the folder in explorer
+			os.execute('explorer "' .. extFolderPath .. '"')
+		end
 	end
 
 	self.DATA_OUTPUT_FILE = "tracker_output.json"
