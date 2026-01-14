@@ -40,7 +40,8 @@ Put this link in the input:<br>
 ---
 
 ## 2. Connect Your Twitch Account
-Open **IronmonConnect.exe** and click **"Connect Twitch"** to authenticate your account. <br><br>
+Open **IronmonConnect.exe** (you can open the extension in the tracker and click "Options" to boot the program.<br>
+Click **"Connect Twitch"** to authenticate your account. <br><br>
 
 <img width="300" height="250" alt="connectTwitch" src="https://github.com/user-attachments/assets/7d92ecaf-991a-44e9-8a54-c89638fac4eb" />
 
