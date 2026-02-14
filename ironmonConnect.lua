@@ -1,9 +1,9 @@
 local function IronmonConnect()
 	local self = {
-		version = "1.0",
-		name = "ironmonConnect",
+		version = "2.0",
+		name = "IronmonConnect",
 		author = "WaffleSmacker",
-		description = "Created for ironmonConnect. Used to send data to the website. Click options to launch the ironmonConnect application.",
+		description = "Created for IronmonConnect. Used to send data to the website. Click options to launch the IronmonConnect application.",
 		github = "WaffleSmacker/IronmonConnect-IronmonExtension",
 	}
 
@@ -49,11 +49,6 @@ local function IronmonConnect()
 		DataOutput = "",
 		DebugOutput = "",
 	}
-
-	-- --- DEBUG LOGGING --- (Disabled)
-	local function log(message)
-		-- Debug logging disabled
-	end
 
 	local function escapeJson(str)
 		if not str then return "" end
@@ -111,6 +106,8 @@ local function IronmonConnect()
 	
 	local getTrackedItems
 	local getPivotData
+	local getRandomSeed
+	local getBadgeCount
 	
 	getTrackedItems = function()
 		local items = {
@@ -196,21 +193,19 @@ local function IronmonConnect()
 		local mapIdSet = {}
 		local function addMap(id)
 			id = tonumber(id)
-			if id and not mapIdSet[id] then 
+			if id and not mapIdSet[id] then
 				table.insert(allMapIds, id)
-				mapIdSet[id] = true 
+				mapIdSet[id] = true
 			end
 		end
 
 		for _, mapId in ipairs(pivotMapIds) do addMap(mapId) end
 		for _, mapId in ipairs(safariMapIds) do addMap(mapId) end
-		
-		-- Safely add Safari Zone maps
+
 		if GameSettings.game == 3 then
 			addMap(149); addMap(150); addMap(151); addMap(152)
 		end
 		
-		-- Ensure we include any maps we found fishing encounters on
 		if self.PerSeedVars and self.PerSeedVars.fishingEncounters then
 			for mapId, _ in pairs(self.PerSeedVars.fishingEncounters) do
 				addMap(mapId)
@@ -218,9 +213,8 @@ local function IronmonConnect()
 		end
 		
 		for _, mapId in ipairs(allMapIds) do
-			local encountersByMethod = {} 
-			
-			-- 1. Load Fishing Encounters
+			local encountersByMethod = {}
+
 			local fishingEncounters = self.PerSeedVars and self.PerSeedVars.fishingEncounters
 			if fishingEncounters then
 				local fishingRouteData = fishingEncounters[mapId] or fishingEncounters[tostring(mapId)] or fishingEncounters[tonumber(mapId)]
@@ -235,7 +229,6 @@ local function IronmonConnect()
 				end
 			end
 			
-			-- 2. Load Standard Encounters
 			local encounterAreas = { RouteData.EncounterArea.LAND }
 			if RouteData.EncounterArea.SURFING then table.insert(encounterAreas, RouteData.EncounterArea.SURFING) end
 			if RouteData.EncounterArea.OLDROD then table.insert(encounterAreas, RouteData.EncounterArea.OLDROD) end
@@ -258,7 +251,6 @@ local function IronmonConnect()
 				end
 			end
 			
-			-- 3. Build Output
 			if next(encountersByMethod) then
 				pivotData[mapId] = {}
 				for pokemonId, methods in pairs(encountersByMethod) do
@@ -269,11 +261,9 @@ local function IronmonConnect()
 					table.sort(methodList)
 					
 					local entry
-					-- If any special method (rod/surf) exists, use Object Format
 					if #methodList > 0 then
 						entry = { id = pokemonId, method = methodList[1] }
 					else
-						-- Otherwise standard integer
 						entry = pokemonId
 					end
 					table.insert(pivotData[mapId], entry)
@@ -286,6 +276,111 @@ local function IronmonConnect()
 			end
 		end
 		return pivotData
+	end
+
+	getBadgeCount = function()
+		local badgeCount = 0
+		if Program.hasDefeatedTrainer(414) then badgeCount = badgeCount + 1 end -- Brock
+		if Program.hasDefeatedTrainer(415) then badgeCount = badgeCount + 1 end -- Misty
+		if Program.hasDefeatedTrainer(416) then badgeCount = badgeCount + 1 end -- Surge
+		if Program.hasDefeatedTrainer(417) then badgeCount = badgeCount + 1 end -- Erika
+		if Program.hasDefeatedTrainer(418) then badgeCount = badgeCount + 1 end -- Koga
+		if Program.hasDefeatedTrainer(420) then badgeCount = badgeCount + 1 end -- Sabrina
+		if Program.hasDefeatedTrainer(419) then badgeCount = badgeCount + 1 end -- Blaine
+		if Program.hasDefeatedTrainer(350) then badgeCount = badgeCount + 1 end -- Giovanni
+		return badgeCount
+	end
+
+	getRandomSeed = function()
+		local randomSeed = nil
+		local success, result = pcall(function()
+			if type(RandomizerLog) == "table" and type(RandomizerLog.Data) == "table" then
+				-- Check if already parsed
+				if type(RandomizerLog.Data.Settings) == "table" then
+					local seed = RandomizerLog.Data.Settings.RandomSeed
+					if seed then
+						if type(seed) == "string" and seed ~= "" then
+							local numSeed = tonumber(seed)
+							if numSeed then return numSeed end
+						elseif type(seed) == "number" then
+							return seed
+						end
+					end
+				end
+
+				-- Try to find and read the log file
+				local logPath = nil
+				if type(RandomizerLog.loadedLogPath) == "string" and RandomizerLog.loadedLogPath ~= "" then
+					logPath = RandomizerLog.loadedLogPath
+				end
+				if (not logPath or not FileManager.fileExists(logPath)) and type(LogOverlay) == "table" and type(LogOverlay.getLogFileAutodetected) == "function" then
+					logPath = LogOverlay.getLogFileAutodetected()
+				end
+				if (not logPath or not FileManager.fileExists(logPath)) then
+					local customFolderPath = FileManager.getCustomFolderPath()
+					if customFolderPath and customFolderPath ~= "" then
+						local trimmedPath = customFolderPath:match("^(.+)[/\\]$") or customFolderPath
+						local trackerFolder = trimmedPath:match("^(.+)[/\\][^/\\]+$") or trimmedPath
+						if trackerFolder and trackerFolder ~= "" then
+							local possibleLogs = FileManager.getFilesInDirectory(trackerFolder, "*.log")
+							if possibleLogs and #possibleLogs > 0 then
+								for _, logFile in ipairs(possibleLogs) do
+									local fullPath = trackerFolder .. FileManager.slash .. logFile
+									if FileManager.fileExists(fullPath) then
+										logPath = fullPath
+										break
+									end
+								end
+							end
+						end
+					end
+				end
+
+				if logPath and FileManager.fileExists(logPath) then
+					local logLines = FileManager.readLinesFromFile(logPath)
+					if logLines and #logLines >= 2 then
+						if type(RandomizerLog.parseRandomizerSettings) == "function" then
+							RandomizerLog.parseRandomizerSettings(logLines)
+							if type(RandomizerLog.Data.Settings) == "table" then
+								local seed = RandomizerLog.Data.Settings.RandomSeed
+								if seed then
+									if type(seed) == "string" and seed ~= "" then
+										local numSeed = tonumber(seed)
+										if numSeed then return numSeed end
+									elseif type(seed) == "number" then
+										return seed
+									end
+								end
+							end
+						end
+						if type(RandomizerLog.Patterns) == "table" and type(RandomizerLog.Patterns.RandomizerSeed) == "string" then
+							local seedMatch = string.match(logLines[2] or "", RandomizerLog.Patterns.RandomizerSeed)
+							if seedMatch then
+								local numSeed = tonumber(seedMatch)
+								if numSeed then return numSeed end
+							end
+						end
+						local seedMatch = string.match(logLines[2] or "", "Random Seed:%s*(%d+)")
+						if seedMatch then
+							local numSeed = tonumber(seedMatch)
+							if numSeed then return numSeed end
+						end
+					end
+				end
+			end
+			return nil
+		end)
+		if success and result then randomSeed = result end
+		return randomSeed
+	end
+
+	local function getRouteName()
+		local mapId = nil
+		if TrackerAPI and TrackerAPI.getMapId then mapId = TrackerAPI.getMapId() end
+		if mapId and RouteData.Info and RouteData.Info[mapId] then
+			return RouteData.Info[mapId].name or "Unknown Area"
+		end
+		return "Unknown Area"
 	end
 
 	local function compareItemCategory(current, previous)
@@ -327,10 +422,34 @@ local function IronmonConnect()
 		return false
 	end
 
+	local function getHighestMilestone()
+		-- Champ
+		if Program.hasDefeatedTrainer(438) or Program.hasDefeatedTrainer(439) or Program.hasDefeatedTrainer(440) then return "champ" end
+		-- Elite Four (reverse order)
+		if Program.hasDefeatedTrainer(413) then return "lance" end
+		if Program.hasDefeatedTrainer(412) then return "agatha" end
+		if Program.hasDefeatedTrainer(411) then return "bruno" end
+		if Program.hasDefeatedTrainer(410) then return "lorelei" end
+		-- Gym Leaders (reverse order)
+		if Program.hasDefeatedTrainer(350) then return "giovanni" end
+		if Program.hasDefeatedTrainer(419) then return "blaine" end
+		if Program.hasDefeatedTrainer(420) then return "sabrina" end
+		if Program.hasDefeatedTrainer(418) then return "koga" end
+		if Program.hasDefeatedTrainer(417) then return "erika" end
+		if Program.hasDefeatedTrainer(416) then return "surge" end
+		if Program.hasDefeatedTrainer(415) then return "misty" end
+		if Program.hasDefeatedTrainer(414) then return "brock" end
+		-- Lab rival
+		if Program.hasDefeatedTrainer(326) or Program.hasDefeatedTrainer(327) or Program.hasDefeatedTrainer(328) then return "lab" end
+		return nil
+	end
+
 	local function getCurrentValues(pokemon)
 		if not PokemonData.isValid(pokemon.pokemonID) then return nil end
 		local values = {}
 		values.pokemonId = PokemonData.Pokemon[pokemon.pokemonID].pokemonID
+		values.pokemonName = PokemonData.Pokemon[pokemon.pokemonID].name or "Unknown"
+		values.nickname = pokemon.nickname or ""
 		values.abilityName = PokemonData.getAbilityId(pokemon.pokemonID, pokemon.abilityNum)
 		values.level = pokemon.level or 0
 		values.hp = pokemon.stats.hp or 0
@@ -344,8 +463,17 @@ local function IronmonConnect()
 		values.move_3 = MoveData.Moves[pokemon.moves[3].id].id
 		values.move_4 = MoveData.Moves[pokemon.moves[4].id].id
 		values.trainersDefeated = getTotalDefeatedTrainers(false)
+		values.milestone = getHighestMilestone()
+		values.badgeCount = getBadgeCount()
+		values.routeName = getRouteName()
+		values.randomSeed = getRandomSeed()
 		values.items = getTrackedItems()
 		values.pivots = getPivotData()
+		local gachaStars = 0
+		if GachaMonData and GachaMonData.playerViewedMon then
+			gachaStars = GachaMonData.playerViewedMon:getStars() or 0
+		end
+		values.stars = gachaStars
 		return values
 	end
 
@@ -354,17 +482,31 @@ local function IronmonConnect()
 		return current.pokemonId ~= previous.pokemonId or
 		       current.abilityName ~= previous.abilityName or
 			   current.level ~= previous.level or
+			   current.nickname ~= previous.nickname or
+			   (current.level ~= previous.level and (
+			       current.hp ~= previous.hp or
+			       current.atk ~= previous.atk or
+			       current.def ~= previous.def or
+			       current.spa ~= previous.spa or
+			       current.spd ~= previous.spd or
+			       current.spe ~= previous.spe)) or
+			   current.move_1 ~= previous.move_1 or
+			   current.move_2 ~= previous.move_2 or
+			   current.move_3 ~= previous.move_3 or
+			   current.move_4 ~= previous.move_4 or
 			   current.trainersDefeated ~= previous.trainersDefeated or
 		       itemsChanged(current.items, previous.items) or
 		       pivotsChanged(current.pivots, previous.pivots)
 	end
 
-	local function writeSimplifiedDataToFile(values)
+	local function writeSimplifiedDataToFile(values, recordRun, isFaint)
 		local file = io.open(self.Paths.DataOutput, "w")
 		if not file then return false end
-		
+
 		local jsonContent = "{\n"
 		jsonContent = jsonContent .. '  "pokemonId": ' .. tostring(values.pokemonId) .. ",\n"
+		jsonContent = jsonContent .. '  "pokemonName": "' .. escapeJson(values.pokemonName or "Unknown") .. '",\n'
+		jsonContent = jsonContent .. '  "nickname": "' .. escapeJson(values.nickname or "") .. '",\n'
 		jsonContent = jsonContent .. '  "abilityName": ' .. tostring(values.abilityName) .. ",\n"
 		jsonContent = jsonContent .. '  "level": ' .. tostring(values.level) .. ",\n"
 		jsonContent = jsonContent .. '  "hp": ' .. tostring(values.hp) .. ",\n"
@@ -378,7 +520,14 @@ local function IronmonConnect()
 		jsonContent = jsonContent .. '  "move_3": ' .. tostring(values.move_3) .. ",\n"
 		jsonContent = jsonContent .. '  "move_4": ' .. tostring(values.move_4) .. ",\n"
 		jsonContent = jsonContent .. '  "trainersDefeated": ' .. tostring(values.trainersDefeated) .. ",\n"
-		
+		jsonContent = jsonContent .. '  "milestone": ' .. (values.milestone and ('"' .. escapeJson(values.milestone) .. '"') or "null") .. ",\n"
+		jsonContent = jsonContent .. '  "stars": ' .. tostring(values.stars or 0) .. ",\n"
+		jsonContent = jsonContent .. '  "badgeCount": ' .. tostring(values.badgeCount or 0) .. ",\n"
+		jsonContent = jsonContent .. '  "routeName": "' .. escapeJson(values.routeName or "Unknown Area") .. '",\n'
+		jsonContent = jsonContent .. '  "randomSeed": ' .. (values.randomSeed and tostring(values.randomSeed) or "null") .. ",\n"
+		jsonContent = jsonContent .. '  "recordRun": ' .. tostring(recordRun and true or false) .. ",\n"
+		jsonContent = jsonContent .. '  "isFaint": ' .. tostring(isFaint and true or false) .. ",\n"
+
 		jsonContent = jsonContent .. '  "items": {\n'
 		local function formatHealCategory(categoryName, healArray)
 			jsonContent = jsonContent .. '    "' .. categoryName .. '": [\n'
@@ -435,27 +584,32 @@ local function IronmonConnect()
 
 	self.PerSeedVars = {
 		FirstPokemonChosen = false,
+		PokemonDead = false,
 		LastValues = nil,
 		fishingCountdown = 0,
 		fishingMapId = nil,
 		fishingEncounters = {},
 		lastValidMapId = nil,
+		lastMilestoneUpdate = nil,
+		milestoneWriteCooldown = 0,
 	}
 
 	function self.resetSeedVars()
 		local V = self.PerSeedVars
 		V.FirstPokemonChosen = false
+		V.PokemonDead = false
 		V.LastValues = nil
 		V.fishingCountdown = 0
 		V.fishingMapId = nil
 		V.fishingEncounters = {}
 		V.lastValidMapId = nil
+		V.lastMilestoneUpdate = nil
+		V.milestoneWriteCooldown = 0
 	end
 
 	local loadedVarsThisSeed
 	local function isPlayingFRLG() return GameSettings.game == 3 end
 
-	-- Helper to robustly get Map ID
 	local function getRobustMapId()
 		local id = nil
 		if TrackerAPI and TrackerAPI.getMapId then id = TrackerAPI.getMapId() end
@@ -480,10 +634,8 @@ local function IronmonConnect()
 		if currentGoodMapId then V.lastValidMapId = currentGoodMapId end
 
 		local fishingTriggered = false
-		local triggerReason = ""
-		
-		-- FIXED TRIGGER LOGIC: Only trigger if stat increases by exactly 1.
-		-- This filters out massive changes caused by loading save states or resets.
+
+		-- Only trigger fishing if stat increases by exactly 1 (filters out save state loads)
 		if Constants and Constants.GAME_STATS and Constants.GAME_STATS.FISHING_CAPTURES then
 			if not Tracker.Data then Tracker.Data = {} end
 			local currentFishingStat = Utils.getGameStat(Constants.GAME_STATS.FISHING_CAPTURES)
@@ -518,15 +670,13 @@ local function IronmonConnect()
 				end
 			end
 
-			-- FIXED: Correctly look for the ENEMY pokemon (isOwn=false, index=1)
-			local enemyPokemon = Tracker.getPokemon(1, false)
+				local enemyPokemon = Tracker.getPokemon(1, false)
 			
 			if enemyPokemon and PokemonData.isValid(enemyPokemon.pokemonID) then
 				if V.fishingMapId then
 					local currentMapId = tonumber(V.fishingMapId) or V.fishingMapId
 					local pokemonId = enemyPokemon.pokemonID
-					
-					-- FORCE SAVE the encounter
+
 					if not V.fishingEncounters[currentMapId] then V.fishingEncounters[currentMapId] = {} end
 					if not V.fishingEncounters[currentMapId][pokemonId] then
 						V.fishingEncounters[currentMapId][pokemonId] = true
@@ -540,10 +690,65 @@ local function IronmonConnect()
 		end
 
 		if Program.isValidMapLocation() and PokemonData.isValid(leadPokemon.pokemonID) and V.FirstPokemonChosen then
+			-- Reset milestone tracking on new run (seed change or fresh start)
 			local currentValues = getCurrentValues(leadPokemon)
-			if currentValues and valuesChanged(currentValues, V.LastValues) then
-				writeSimplifiedDataToFile(currentValues)
-				V.LastValues = currentValues
+			if currentValues then
+				local previousSeed = V.LastValues and V.LastValues.randomSeed or nil
+				local currentSeed = currentValues.randomSeed
+
+				if not V.LastValues or (currentSeed and (not previousSeed or previousSeed ~= currentSeed)) then
+					V.lastMilestoneUpdate = nil
+					V.PokemonDead = false
+				end
+			end
+
+			-- Faint detection
+			local hpPercentage = (leadPokemon.curHP or 0) / (leadPokemon.stats.hp or 100)
+			if hpPercentage == 0 and not V.PokemonDead then
+				V.PokemonDead = true
+				local currentValues = getCurrentValues(leadPokemon)
+				if currentValues then
+					writeSimplifiedDataToFile(currentValues, true, true)
+					V.LastValues = currentValues
+					V.lastMilestoneUpdate = currentValues.milestone
+				end
+				return
+			end
+
+			-- Normal update (only when alive)
+			if not V.PokemonDead then
+				-- Decrement milestone write cooldown each frame
+				if V.milestoneWriteCooldown > 0 then
+					V.milestoneWriteCooldown = V.milestoneWriteCooldown - 1
+				end
+
+				local currentValues = getCurrentValues(leadPokemon)
+				if currentValues then
+					local shouldUpdatePastRuns = false
+					local currentMilestone = currentValues.milestone
+					local currentBadgeCount = currentValues.badgeCount or 0
+					local previousBadgeCount = V.LastValues and (V.LastValues.badgeCount or 0) or 0
+
+					-- Milestone checks: update on every new badge and champion
+					if currentBadgeCount > previousBadgeCount and currentBadgeCount >= 1 and V.lastMilestoneUpdate ~= currentMilestone then
+						shouldUpdatePastRuns = true
+					elseif currentMilestone == "champ" and V.lastMilestoneUpdate ~= "champ" then
+						shouldUpdatePastRuns = true
+					end
+
+					local needsNormalUpdate = not V.LastValues or valuesChanged(currentValues, V.LastValues)
+
+					if shouldUpdatePastRuns then
+						writeSimplifiedDataToFile(currentValues, true, false)
+						V.lastMilestoneUpdate = currentMilestone
+						-- Cooldown: suppress normal writes for ~3s so Python can read the milestone
+						V.milestoneWriteCooldown = 180
+						V.LastValues = currentValues
+					elseif needsNormalUpdate and V.milestoneWriteCooldown <= 0 then
+						writeSimplifiedDataToFile(currentValues, false, false)
+						V.LastValues = currentValues
+					end
+				end
 			end
 		end
 	end
