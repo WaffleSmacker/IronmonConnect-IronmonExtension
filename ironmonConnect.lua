@@ -1,6 +1,6 @@
 local function IronmonConnect()
 	local self = {
-		version = "2.0",
+		version = "2.1",
 		name = "IronmonConnect",
 		author = "WaffleSmacker",
 		description = "Created for IronmonConnect. Used to send data to the website. Click options to launch the IronmonConnect application.",
@@ -383,6 +383,16 @@ local function IronmonConnect()
 		return "Unknown Area"
 	end
 
+	local function checkIsNatDex()
+		-- Check the NatDex pokemon count at the known ROM address
+		local success, result = pcall(function()
+			local natDexMonCount = Memory.read32(0x08000170)
+			return (natDexMonCount == 1210)
+		end)
+		if success then return result end
+		return false
+	end
+
 	local function compareItemCategory(current, previous)
 		if not previous then return #current > 0 end
 		if #current ~= #previous then return true end
@@ -474,6 +484,7 @@ local function IronmonConnect()
 			gachaStars = GachaMonData.playerViewedMon:getStars() or 0
 		end
 		values.stars = gachaStars
+		values.isNatDex = checkIsNatDex()
 		return values
 	end
 
@@ -527,6 +538,7 @@ local function IronmonConnect()
 		jsonContent = jsonContent .. '  "randomSeed": ' .. (values.randomSeed and tostring(values.randomSeed) or "null") .. ",\n"
 		jsonContent = jsonContent .. '  "recordRun": ' .. tostring(recordRun and true or false) .. ",\n"
 		jsonContent = jsonContent .. '  "isFaint": ' .. tostring(isFaint and true or false) .. ",\n"
+		jsonContent = jsonContent .. '  "isNatDex": ' .. tostring(values.isNatDex and true or false) .. ",\n"
 
 		jsonContent = jsonContent .. '  "items": {\n'
 		local function formatHealCategory(categoryName, healArray)
