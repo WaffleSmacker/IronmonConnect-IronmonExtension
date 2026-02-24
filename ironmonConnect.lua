@@ -1,6 +1,6 @@
 local function IronmonConnect()
 	local self = {
-		version = "2.1",
+		version = "2.2",
 		name = "IronmonConnect",
 		author = "WaffleSmacker",
 		description = "Created for IronmonConnect. Used to send data to the website. Click options to launch the IronmonConnect application.",
@@ -460,18 +460,47 @@ local function IronmonConnect()
 		values.pokemonId = PokemonData.Pokemon[pokemon.pokemonID].pokemonID
 		values.pokemonName = PokemonData.Pokemon[pokemon.pokemonID].name or "Unknown"
 		values.nickname = pokemon.nickname or ""
-		values.abilityName = PokemonData.getAbilityId(pokemon.pokemonID, pokemon.abilityNum)
-		values.level = pokemon.level or 0
-		values.hp = pokemon.stats.hp or 0
-		values.atk = pokemon.stats.atk or 0
-		values.def = pokemon.stats.def or 0
-		values.spa = pokemon.stats.spa or 0
-		values.spd = pokemon.stats.spd or 0
-		values.spe = pokemon.stats.spe or 0
-		values.move_1 = MoveData.Moves[pokemon.moves[1].id].id
-		values.move_2 = MoveData.Moves[pokemon.moves[2].id].id
-		values.move_3 = MoveData.Moves[pokemon.moves[3].id].id
-		values.move_4 = MoveData.Moves[pokemon.moves[4].id].id
+
+		-- Check if pokemon info should be hidden to avoid spoilers (mirrors DataHelper.lua:144-145)
+		local infoIsHidden = false
+		if Tracker and Tracker.Data and not Tracker.Data.hasCheckedSummary then
+			infoIsHidden = true
+		end
+		local gachaMonViewOverride = Options
+			and Options["Show card pack on screen after capturing a GachaMon"]
+			and GachaMonData and GachaMonData.hasNewestMonToShow
+			and GachaMonData.hasNewestMonToShow()
+		if gachaMonViewOverride then
+			infoIsHidden = true
+		end
+
+		if infoIsHidden then
+			values.abilityName = 0
+			values.level = pokemon.level or 0
+			values.hp = 0
+			values.atk = 0
+			values.def = 0
+			values.spa = 0
+			values.spd = 0
+			values.spe = 0
+			values.move_1 = 0
+			values.move_2 = 0
+			values.move_3 = 0
+			values.move_4 = 0
+		else
+			values.abilityName = PokemonData.getAbilityId(pokemon.pokemonID, pokemon.abilityNum)
+			values.level = pokemon.level or 0
+			values.hp = pokemon.stats.hp or 0
+			values.atk = pokemon.stats.atk or 0
+			values.def = pokemon.stats.def or 0
+			values.spa = pokemon.stats.spa or 0
+			values.spd = pokemon.stats.spd or 0
+			values.spe = pokemon.stats.spe or 0
+			values.move_1 = MoveData.Moves[pokemon.moves[1].id].id
+			values.move_2 = MoveData.Moves[pokemon.moves[2].id].id
+			values.move_3 = MoveData.Moves[pokemon.moves[3].id].id
+			values.move_4 = MoveData.Moves[pokemon.moves[4].id].id
+		end
 		values.trainersDefeated = getTotalDefeatedTrainers(false)
 		values.milestone = getHighestMilestone()
 		values.badgeCount = getBadgeCount()
