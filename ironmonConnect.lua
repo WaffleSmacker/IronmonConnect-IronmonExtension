@@ -1,6 +1,6 @@
 local function IronmonConnect()
 	local self = {
-		version = "2.2",
+		version = "2.3",
 		name = "IronmonConnect",
 		author = "WaffleSmacker",
 		description = "Created for IronmonConnect. Used to send data to the website. Click options to launch the IronmonConnect application.",
@@ -633,6 +633,7 @@ local function IronmonConnect()
 		lastValidMapId = nil,
 		lastMilestoneUpdate = nil,
 		milestoneWriteCooldown = 0,
+		gameStatsFishing = nil,
 	}
 
 	function self.resetSeedVars()
@@ -678,18 +679,17 @@ local function IronmonConnect()
 
 		-- Only trigger fishing if stat increases by exactly 1 (filters out save state loads)
 		if Constants and Constants.GAME_STATS and Constants.GAME_STATS.FISHING_CAPTURES then
-			if not Tracker.Data then Tracker.Data = {} end
 			local currentFishingStat = Utils.getGameStat(Constants.GAME_STATS.FISHING_CAPTURES)
-			
-			if Tracker.Data.gameStatsFishing == nil then
-				Tracker.Data.gameStatsFishing = currentFishingStat
+
+			if V.gameStatsFishing == nil then
+				V.gameStatsFishing = currentFishingStat
 			else
-				local diff = currentFishingStat - Tracker.Data.gameStatsFishing
+				local diff = currentFishingStat - V.gameStatsFishing
 				if diff == 1 then
 					fishingTriggered = true
 					triggerReason = "Stat Incremented"
 				end
-				Tracker.Data.gameStatsFishing = currentFishingStat
+				V.gameStatsFishing = currentFishingStat
 			end
 		end
 
